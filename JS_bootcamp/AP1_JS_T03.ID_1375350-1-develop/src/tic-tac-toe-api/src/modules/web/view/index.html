@@ -1,0 +1,506 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Крестики-Нолики</title>
+    <style>
+      :root {
+        --bg: #000000;
+        --fg: #ffffff;
+        --accent: #ff2d2d;
+        --muted: #6f6f6f;
+        --panel: #101010;
+        --panel-strong: #181818;
+        --board-size: min(60vmin, 440px);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
+      }
+
+      #app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid var(--fg);
+        padding: 10px 14px;
+        background: var(--panel);
+        gap: 12px;
+      }
+
+      header h1 {
+        font-size: 16px;
+        margin: 0;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      header .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      button {
+        background: transparent;
+        color: var(--fg);
+        border: 1px solid var(--fg);
+        padding: 6px 12px;
+        font-family: inherit;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--fg);
+        color: var(--bg);
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 12px;
+        height: 100%;
+        min-height: 0;
+      }
+
+      .sidebar {
+        display: grid;
+        gap: 10px;
+        min-height: 0;
+      }
+
+      .panel {
+        border: 1px solid var(--fg);
+        padding: 10px;
+        background: var(--panel);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 8px;
+        min-height: 0;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .games {
+        display: grid;
+        gap: 6px;
+        overflow: hidden;
+        align-content: start;
+      }
+
+      .game-item {
+        border: 1px solid var(--fg);
+        padding: 6px 8px;
+        background: var(--panel-strong);
+        display: grid;
+        gap: 6px;
+        cursor: pointer;
+      }
+
+      .game-item.active {
+        border-color: var(--accent);
+      }
+
+      .game-title {
+        font-size: 12px;
+        letter-spacing: 0.4px;
+      }
+
+      .game-meta {
+        font-size: 10px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .game-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+
+      .game-actions button {
+        font-size: 10px;
+        padding: 4px 6px;
+      }
+
+      .game-view {
+        border: 1px solid var(--fg);
+        padding: 12px;
+        background: var(--panel);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        justify-items: center;
+      }
+
+      .game-view .title {
+        font-size: 14px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .game-view .status {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .board {
+        width: var(--board-size);
+        height: var(--board-size);
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        align-content: stretch;
+        gap: 6px;
+      }
+
+      .cell {
+        border: 1px solid var(--fg);
+        display: grid;
+        place-items: center;
+        font-size: clamp(26px, 7vmin, 56px);
+        line-height: 1;
+        cursor: pointer;
+        background: transparent;
+        user-select: none;
+        width: 100%;
+        height: 100%;
+      }
+
+      .cell.player {
+        color: var(--fg);
+      }
+
+      .cell.computer {
+        color: var(--accent);
+      }
+
+      .cell.disabled {
+        cursor: default;
+        opacity: 0.6;
+      }
+
+      .placeholder {
+        color: var(--muted);
+        font-size: 11px;
+        text-align: center;
+      }
+
+      footer {
+        display: flex;
+        justify-content: flex-end;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .message {
+        color: var(--accent);
+      }
+
+      @media (max-width: 960px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .game-view {
+          order: -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Крестики-Нолики</h1>
+        <div class="controls">
+          <button id="createGame">Новая игра</button>
+        </div>
+      </header>
+
+      <main>
+        <div class="sidebar">
+          <section class="panel">
+            <h2>Активные игры</h2>
+            <div id="activeGames" class="games"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Завершённые игры</h2>
+            <div id="finishedGames" class="games"></div>
+          </section>
+        </div>
+
+        <section class="game-view">
+          <div class="title" id="currentTitle">Выберите игру</div>
+          <div class="board" id="gameBoard"></div>
+          <div class="status" id="currentStatus"></div>
+        </section>
+      </main>
+
+      <footer>
+        <div id="message" class="message"></div>
+      </footer>
+    </div>
+
+    <script>
+      const messageEl = document.getElementById('message');
+      const activeContainer = document.getElementById('activeGames');
+      const finishedContainer = document.getElementById('finishedGames');
+      const boardContainer = document.getElementById('gameBoard');
+      const currentTitle = document.getElementById('currentTitle');
+      const currentStatus = document.getElementById('currentStatus');
+
+      let selectedGameId = null;
+      let lastLoaded = { active: [], finished: [] };
+
+      const api = {
+        async list() {
+          const response = await fetch('/games');
+          if (!response.ok) throw new Error('Не удалось загрузить игры');
+          return response.json();
+        },
+        async create(name) {
+          const hasName = typeof name === 'string' && name.trim();
+          const response = await fetch('/game', {
+            method: 'POST',
+            headers: hasName ? { 'Content-Type': 'application/json' } : {},
+            body: hasName ? JSON.stringify({ name }) : null,
+          });
+          if (!response.ok) throw new Error('Не удалось создать игру');
+          return response.json();
+        },
+        async update(id, game) {
+          const response = await fetch(`/game/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(game),
+          });
+          const payload = await response.json().catch(() => null);
+          if (!response.ok) {
+            const detail = payload && payload.message ? payload.message : 'Ошибка хода';
+            throw new Error(detail);
+          }
+          return payload;
+        },
+        async remove(id) {
+          const response = await fetch(`/game/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Не удалось удалить игру');
+          return response.json();
+        },
+      };
+
+      const statusText = (game) => {
+        if (!game.finished) return 'Игра продолжается';
+        if (game.status === 'DRAW') return 'Ничья';
+        if (game.status === 'PLAYER_WON') return 'Победа игрока';
+        if (game.status === 'COMPUTER_WON') return 'Победа компьютера';
+        return 'Игра завершена';
+      };
+
+      const clearMessage = () => {
+        messageEl.textContent = '';
+      };
+
+      const showMessage = (text) => {
+        messageEl.textContent = text;
+      };
+
+      const renderList = (list, container, isFinished) => {
+        container.innerHTML = '';
+        if (!list.length) {
+          const empty = document.createElement('div');
+          empty.className = 'placeholder';
+          empty.textContent = isFinished ? 'Нет завершённых игр' : 'Нет активных игр';
+          container.appendChild(empty);
+          return;
+        }
+
+        list.forEach((game) => {
+          const item = document.createElement('div');
+          item.className = 'game-item';
+          if (game.id === selectedGameId) item.classList.add('active');
+
+          const title = document.createElement('div');
+          title.className = 'game-title';
+          title.textContent = game.name || 'Без названия';
+
+          const meta = document.createElement('div');
+          meta.className = 'game-meta';
+          meta.textContent = statusText(game);
+
+          const actions = document.createElement('div');
+          actions.className = 'game-actions';
+
+          const removeBtn = document.createElement('button');
+          removeBtn.textContent = 'Удалить';
+          removeBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            try {
+              await api.remove(game.id);
+              if (selectedGameId === game.id) selectedGameId = null;
+              await loadGames();
+            } catch (error) {
+              showMessage(error.message);
+            }
+          });
+
+          actions.appendChild(removeBtn);
+
+          item.appendChild(title);
+          item.appendChild(meta);
+          item.appendChild(actions);
+
+          item.addEventListener('click', () => {
+            selectedGameId = game.id;
+            renderBoard(game);
+            renderLists(lastLoaded);
+          });
+
+          container.appendChild(item);
+        });
+      };
+
+      const renderBoard = (game) => {
+        boardContainer.innerHTML = '';
+
+        if (!game) {
+          currentTitle.textContent = 'Выберите игру';
+          currentStatus.textContent = '';
+          const empty = document.createElement('div');
+          empty.className = 'placeholder';
+          empty.textContent = 'Нет выбранной игры';
+          boardContainer.appendChild(empty);
+          return;
+        }
+
+        currentTitle.textContent = game.name || 'Без названия';
+        currentStatus.textContent = statusText(game);
+
+        game.board.matrix.forEach((row, rowIndex) => {
+          row.forEach((cell, colIndex) => {
+            const cellEl = document.createElement('div');
+            cellEl.className = 'cell';
+            cellEl.dataset.row = rowIndex;
+            cellEl.dataset.col = colIndex;
+
+            if (cell === 1) {
+              cellEl.classList.add('player');
+              cellEl.textContent = 'X';
+            } else if (cell === 2) {
+              cellEl.classList.add('computer');
+              cellEl.textContent = 'O';
+            } else {
+              cellEl.textContent = '';
+            }
+
+            if (game.finished) {
+              cellEl.classList.add('disabled');
+            }
+
+            boardContainer.appendChild(cellEl);
+          });
+        });
+
+        boardContainer.onclick = null;
+        if (!game.finished) {
+          boardContainer.onclick = async (event) => {
+            const target = event.target;
+            if (!target.classList.contains('cell')) return;
+            if (target.classList.contains('player') || target.classList.contains('computer')) return;
+
+            const row = Number(target.dataset.row);
+            const col = Number(target.dataset.col);
+            const matrix = game.board.matrix.map((r) => r.slice());
+
+            matrix[row][col] = 1;
+
+            try {
+              clearMessage();
+              await api.update(game.id, { id: game.id, board: { matrix } });
+              await loadGames(game.id);
+            } catch (error) {
+              showMessage(error.message);
+            }
+          };
+        }
+      };
+
+      const renderLists = (data) => {
+        renderList(data.active || [], activeContainer, false);
+        renderList(data.finished || [], finishedContainer, true);
+      };
+
+      const pickGame = (data) => {
+        const all = [...(data.active || []), ...(data.finished || [])];
+        if (!all.length) {
+          selectedGameId = null;
+          renderBoard(null);
+          return;
+        }
+        if (!selectedGameId || !all.find((game) => game.id === selectedGameId)) {
+          selectedGameId = data.active[0]?.id || data.finished[0]?.id || null;
+        }
+        const selected = all.find((game) => game.id === selectedGameId) || null;
+        renderBoard(selected);
+      };
+
+      async function loadGames(preselectId = null) {
+        try {
+          clearMessage();
+          const data = await api.list();
+          lastLoaded = data;
+          if (preselectId) selectedGameId = preselectId;
+          renderLists(data);
+          pickGame(data);
+        } catch (error) {
+          showMessage(error.message);
+        }
+      }
+
+      document.getElementById('createGame').addEventListener('click', async () => {
+        try {
+          clearMessage();
+          const created = await api.create();
+          await loadGames(created.id);
+        } catch (error) {
+          showMessage(error.message);
+        }
+      });
+
+      loadGames();
+    </script>
+  </body>
+</html>
